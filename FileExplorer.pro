@@ -26,10 +26,12 @@ CONFIG += c++11
 
 SOURCES += \
         main.cpp \
-        fmainwindow.cpp
+        fmainwindow.cpp \
+    mfilesystemmodel.cpp
 
 HEADERS += \
-        fmainwindow.h
+        fmainwindow.h \
+    mfilesystemmodel.h
 
 # Default rules for deployment.
 qnx: target.path = /tmp/$${TARGET}/bin
