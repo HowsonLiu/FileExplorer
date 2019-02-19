@@ -28,12 +28,14 @@ SOURCES += \
         main.cpp \
         fmainwindow.cpp \
     mfilesystemmodel.cpp \
-    fhistorystack.cpp
+    fhistorystack.cpp \
+    rightclickmenu.cpp
 
 HEADERS += \
         fmainwindow.h \
     mfilesystemmodel.h \
-    fhistorystack.h
+    fhistorystack.h \
+    rightclickmenu.h
 
 # Default rules for deployment.
 qnx: target.path = /tmp/$${TARGET}/bin

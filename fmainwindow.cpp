@@ -1,6 +1,7 @@
 ﻿#include "fmainwindow.h"
 #include "mfilesystemmodel.h"
 #include "fhistorystack.h"
+#include "rightclickmenu.h"
 #include <QPushButton>
 #include <QLineEdit>
 #include <QListView>
@@ -8,8 +9,14 @@
 #include <QHBoxLayout>
 #include <QVBoxLayout>
 #include <QMessageBox>
+#include <QDebug>
 
-const QString g_dirNotExistMsg = QObject::tr("Windows can't find '%1'. Check the spelling and try again.");
+const QString g_fileDirNotExistMsg = QObject::tr("Could not find this item.\n'%1'");
+const QString g_enterDirNotExistMsg = QObject::tr("Windows can't find '%1'. Check the spelling and try again.");
+const QString g_fileExistMsg = QObject::tr("The destination already has a file named '%1'");
+const QString g_fileSameWithDirMsg = QObject::tr("There is already a folder with the same name as the file name you specified.\n'%1'\nSpecifiy a different name");
+const QString g_dirSubDirMsg = QObject::tr("The destination folder is a subfolder of the source folder.\n'%1'");
+const QString g_fileremoveMsg = QObject::tr("Could not remove this item.\n'%1'");
 
 FMainWindow::FMainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -35,6 +42,21 @@ FMainWindow::FMainWindow(QWidget *parent)
     connect(m_forwardButton, &QPushButton::clicked,
             this, &FMainWindow::onForwardButtonClick);
 
+    //context menu
+    connect(m_listView, &QWidget::customContextMenuRequested,
+            this, &FMainWindow::onCustomContextMenuRequested);
+    connect(m_treeView, &QWidget::customContextMenuRequested,
+            this, &FMainWindow::onCustomContextMenuRequested);
+    connect(BLANKMENUINSTANCE, &BlankMenu::sigSwitchViewType,
+            this, &FMainWindow::onSwitchViewType);
+    connect(BLANKMENUINSTANCE, &BlankMenu::sigRefresh,
+            this, &FMainWindow::onRefresh);
+    connect(BLANKMENUINSTANCE, &BlankMenu::sigPaste,
+            this, &FMainWindow::onPaste);
+    connect(ITEMMENUINSTANCE, &ItemMenu::sigRemove,
+            this, &FMainWindow::onRemove);
+
+
     onSwitchViewType(Icon);
     jumpToMyComputer();
     m_historyStack->push(m_fileModel->myComputer().toString());
@@ -45,19 +67,119 @@ FMainWindow::~FMainWindow()
 
 }
 
+int FMainWindow::CopyFile(const QString &src, const QString &dst, bool move)
+{
+    QFileInfo srcFileinfo(src);
+    if(!srcFileinfo.exists() || srcFileinfo.isDir()){
+        //Windows这里有retry和cancel，我直接skip
+        QMessageBox::critical(this, "Item Not Found", g_fileDirNotExistMsg.arg(srcFileinfo.absoluteFilePath()), "Skip");
+        return COPY_SKIP;
+    }
+    if(src.compare(dst) == 0) return COPY_OK;   //这里window对同路径的复制做加后缀处理，我简单忽略
+    QFileInfo dstFileInfo(dst);
+    QFile dstFile(dst);
+    if(dstFileInfo.exists()){
+        if(dstFileInfo.isFile()){
+            //Windows这里有Replace和Skip和Cancel,我做replace和skip处理
+            if(QMessageBox::warning(this, "Replace or Skip Files", g_fileExistMsg.arg(dstFileInfo.absoluteFilePath()),
+                                    "Replace", "Skip") == 0){
+                if(!dstFile.remove()) {
+                    return COPY_ERROR;
+                }
+            }
+            else{
+                return COPY_SKIP;
+            }
+        }
+        else{
+            //Windows这里有retry和cancel,我做skip跳过
+            QMessageBox::critical(this, "Rename File", g_fileSameWithDirMsg.arg(dstFileInfo.absoluteFilePath()), "Skip");
+            return COPY_SKIP;
+        }
+    }
+    if(!QFile::copy(src, dst)) return COPY_ERROR;
+    if(move) QFile::remove(src);
+    return COPY_OK;
+}
+
+int FMainWindow::CopyDir(const QString &src, const QString &dst, bool move)
+{
+    QFileInfo srcFileinfo(src);
+    if(!srcFileinfo.exists() || srcFileinfo.isFile()){
+        QMessageBox::critical(this, "Item Not Found", g_fileDirNotExistMsg.arg(srcFileinfo.absoluteFilePath()), "Skip");
+        return COPY_SKIP;
+    }
+    if(src.compare(dst) == 0) return COPY_OK;
+    QDir srcDir(src), dstDir(dst);
+    while(dstDir.cdUp()){
+        if(dstDir == srcDir){
+            //Windows这里有cancel和Skip
+            QMessageBox::critical(this, "Subfolder", g_dirSubDirMsg.arg(dstDir.absolutePath()), "Skip");
+            return COPY_SKIP;
+        }
+    }
+    dstDir.setPath(dst);
+    QFileInfo srcFileInfo(src);
+    QFileInfo dstFileInfo(dst);
+    if(srcFileInfo.isFile()) return COPY_ERROR;
+    if(dstFileInfo.exists() && dstFileInfo.isFile()){
+        QMessageBox::critical(this, "Rename File", g_fileSameWithDirMsg.arg(dstFileInfo.absoluteFilePath()), "Skip");
+        return COPY_SKIP;
+    }
+    if(!dstDir.exists()){
+        if(!dstDir.mkdir(dstDir.absolutePath()))
+            return COPY_ERROR;
+    }
+    QFileInfoList srcFileInfoList = srcDir.entryInfoList();
+    for(QFileInfo srcFileInfo : srcFileInfoList){
+        if(srcFileInfo.fileName() == "." || srcFileInfo.fileName() == "..")
+            continue;
+        if(srcFileInfo.isDir()){
+            if(CopyDir(srcFileInfo.filePath(), dstDir.filePath(srcFileInfo.fileName()), move) == COPY_ERROR)
+                return COPY_ERROR;
+        }
+        else{
+            QFileInfo dstFileInfo(dstDir, srcFileInfo.fileName());
+            if(CopyFile(srcFileInfo.absoluteFilePath(), dstFileInfo.absoluteFilePath(), move) == COPY_ERROR)
+                return COPY_ERROR;
+        }
+    }
+    if(move && srcDir.isEmpty()) srcDir.rmpath(srcDir.absolutePath());
+    return COPY_OK;
+}
+
 void FMainWindow::onSwitchViewType(FMainWindow::ViewType type)
 {
-    switch (type) {
-    case Icon:
-        m_treeView->hide();
-        m_listView->show();
-        break;
-    case Detail:
-        m_listView->hide();
-        m_treeView->show();
-        break;
+    if(m_currType != type){
+        switch (type) {
+        case Icon:
+            m_treeView->hide();
+            m_listView->setRootIndex(m_fileModel->index(m_currPath));
+            m_listView->show();
+            break;
+        case Detail:
+            m_listView->hide();
+            m_treeView->setRootIndex(m_fileModel->index(m_currPath));
+            m_treeView->show();
+            break;
+        }
+        m_currType = type;
     }
-    m_currType = type;
+}
+
+void FMainWindow::onPaste(const QStringList &srcs, const QString &dst, bool move)
+{
+    qDebug() << srcs << dst << endl;
+    for(QString src : srcs){
+        QFileInfo srcFileInfo(src);
+        QFileInfo dstFileInfo(QDir(dst), srcFileInfo.fileName());
+        if(srcFileInfo.isFile()){
+            CopyFile(src, dstFileInfo.absoluteFilePath(), move);
+        }
+        else{
+            CopyDir(src, dstFileInfo.absoluteFilePath(), move);
+        }
+    }
 }
 
 void FMainWindow::initWidget()
@@ -88,7 +210,7 @@ void FMainWindow::initWidget()
     setCentralWidget(centralWidget);
 
     //property
-    m_fileModel = new MFileSystemModel(this);
+    m_fileModel = new MFileSystemModel();
     m_historyStack = new FHistoryStack(this);
 
     //history
@@ -120,6 +242,7 @@ void FMainWindow::initWidget()
     m_treeView->setDragDropMode(QAbstractItemView::DragDrop);
     m_treeView->setSelectionMode(QAbstractItemView::ExtendedSelection);
     m_treeView->setEditTriggers(QAbstractItemView::SelectedClicked);
+    m_treeView->setSortingEnabled(true);    //自带排序
 }
 
 bool FMainWindow::inMyComputer() const
@@ -143,7 +266,7 @@ bool FMainWindow::jumpTo(const QString &path)
     }
     QDir dir(path);
     if(!dir.exists()){
-        QMessageBox::critical(this, "File Explorer", g_dirNotExistMsg.arg(dir.absolutePath()), QMessageBox::Ok);
+        QMessageBox::critical(this, "File Explorer", g_enterDirNotExistMsg.arg(dir.absolutePath()), QMessageBox::Ok);
         m_urlEdit->setText(m_currPath);
         return false;
     }
@@ -220,4 +343,48 @@ void FMainWindow::onItemDoubleClick(const QModelIndex& index)
     else{
         //open file
     }
+}
+
+void FMainWindow::onCustomContextMenuRequested(const QPoint& point)
+{
+    if(inMyComputer()) return;
+    if(getCurrentView()->indexAt(point).isValid()){ //在非空白处右击
+        //选中的全传过去，点击的排第一
+        QStringList list;
+        list.append(m_fileModel->filePath(getCurrentView()->indexAt(point)));
+        QModelIndexList selectList = getCurrentView()->selectionModel()->selectedIndexes();
+        for(auto index : selectList){
+            if(!list.contains(m_fileModel->filePath(index)))
+                list.append(m_fileModel->filePath(index));
+        }
+        ITEMMENUINSTANCE->setItemList(list);
+        ITEMMENUINSTANCE->exec(QCursor::pos());
+    }
+    else{ //空白
+        //传当前文件夹路径
+        BLANKMENUINSTANCE->SetPath(m_currPath);
+        BLANKMENUINSTANCE->exec(QCursor::pos());
+    }
+}
+
+// QTBUG-46684
+// QFileSystemModel只监控文件的新增与删除，对文件大小的变化不监控（操作系统所致）
+// 在Qt-5.9.4中提供QT_FILESYSTEMMODEL_WATCH_FILES宏监控
+// 在之前的版本中可以通过QFileSystemWatcher自行监控，但这种方法复杂，监控的数量有限制
+// 因此最被大多数人接受的方法是替换QFileSystemModel以达到强制更新
+void FMainWindow::onRefresh()
+{
+    delete m_fileModel;
+    m_fileModel = new MFileSystemModel();
+    m_listView->setModel(m_fileModel);
+    m_treeView->setModel(m_fileModel);
+    QModelIndex index = m_fileModel->setRootPath(m_currPath);
+    m_listView->setRootIndex(index);
+    m_treeView->setRootIndex(index);
+}
+
+void FMainWindow::onRemove(const QString& path)
+{
+    if(!m_fileModel->remove(m_fileModel->index(path)))
+        QMessageBox::critical(this, "Remove Error", g_fileremoveMsg.arg(path), QMessageBox::Ok);
 }

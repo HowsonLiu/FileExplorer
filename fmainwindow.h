@@ -1,6 +1,10 @@
 ﻿#ifndef FMAINWINDOW_H
 #define FMAINWINDOW_H
 
+#define COPY_OK 0
+#define COPY_SKIP -1 //用户跳过
+#define COPY_ERROR -2 //api出错
+
 #include <QMainWindow>
 
 class QPushButton;
@@ -13,7 +17,6 @@ class FHistoryStack;
 class FMainWindow : public QMainWindow
 {
     Q_OBJECT
-
 public:
     enum ViewType{Icon, Detail};
     Q_ENUM(ViewType)
@@ -21,9 +24,15 @@ public:
 public:
     FMainWindow(QWidget *parent = nullptr);
     ~FMainWindow();
+    //下面这些文件处理函数可以分离出一个类，太少就算了
+    ///Foucs: dst is destination file path (include 1.txt)
+    int CopyFile(const QString& src, const QString& dst, bool move);
+    ///Focus: dst is destination dir path (targetDir/)
+    int CopyDir(const QString& src, const QString& dst, bool move);
 
 public slots:
     void onSwitchViewType(ViewType type);
+    void onPaste(const QStringList& srcs, const QString& dst, bool move);
 
 private:
     QPushButton* m_backButton;
@@ -55,6 +64,9 @@ private slots:
     void onBackButtonClick();
     void onForwardButtonClick();
     void onItemDoubleClick(const QModelIndex& index);
+    void onCustomContextMenuRequested(const QPoint&);
+    void onRefresh();
+    void onRemove(const QString&);
 };
 
 #endif // FMAINWINDOW_H

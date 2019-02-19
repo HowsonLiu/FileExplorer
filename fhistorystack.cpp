@@ -1,5 +1,4 @@
 ﻿#include "fhistorystack.h"
-#include <QDebug>
 
 FHistoryStack::FHistoryStack(QObject* parent) : QObject (parent)
   , m_curIndex(-1)
@@ -36,7 +35,6 @@ void FHistoryStack::forward()
         m_forward = false;
         emit sigForwardEnable(false);
     }
-    qDebug() << m_stack << m_curIndex << endl;
 }
 
 void FHistoryStack::back()
@@ -50,7 +48,6 @@ void FHistoryStack::back()
         m_back = false;
         emit sigBackEnable(false);
     }
-    qDebug() << m_stack << m_curIndex << endl;
 }
 
 void FHistoryStack::push(const QString& val)
