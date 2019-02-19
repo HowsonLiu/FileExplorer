@@ -27,11 +27,13 @@ CONFIG += c++11
 SOURCES += \
         main.cpp \
         fmainwindow.cpp \
-    mfilesystemmodel.cpp
+    mfilesystemmodel.cpp \
+    fhistorystack.cpp
 
 HEADERS += \
         fmainwindow.h \
-    mfilesystemmodel.h
+    mfilesystemmodel.h \
+    fhistorystack.h
 
 # Default rules for deployment.
 qnx: target.path = /tmp/$${TARGET}/bin

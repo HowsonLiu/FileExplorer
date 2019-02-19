@@ -40,8 +40,15 @@ private:
 
 private:
     void initWidget();
+    bool inMyComputer() const;
     void jumpToMyComputer();
+    bool jumpTo(const QString& path);
     QAbstractItemView *getCurrentView();
+
+private slots:
+    void onLineEditEnter();
+    void onUpButtonClick();
+    void onItemDoubleClick(const QModelIndex& index);
 };
 
 #endif // FMAINWINDOW_H
