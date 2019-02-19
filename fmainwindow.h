@@ -9,6 +9,7 @@ class QListView;
 class QTreeView;
 class MFileSystemModel;
 class QAbstractItemView;
+class FHistoryStack;
 class FMainWindow : public QMainWindow
 {
     Q_OBJECT
@@ -35,6 +36,7 @@ private:
                             //to display a list of items with a horizontal header, use QTreeView instead.
 
     MFileSystemModel* m_fileModel;
+    FHistoryStack* m_historyStack;
     QString m_currPath;
     ViewType m_currType;
 
@@ -48,6 +50,10 @@ private:
 private slots:
     void onLineEditEnter();
     void onUpButtonClick();
+    void onBackButtonEnable(bool);
+    void onForwardButtonEnable(bool);
+    void onBackButtonClick();
+    void onForwardButtonClick();
     void onItemDoubleClick(const QModelIndex& index);
 };
 

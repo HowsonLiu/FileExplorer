@@ -1,5 +1,6 @@
 ﻿#include "fmainwindow.h"
 #include "mfilesystemmodel.h"
+#include "fhistorystack.h"
 #include <QPushButton>
 #include <QLineEdit>
 #include <QListView>
@@ -25,9 +26,18 @@ FMainWindow::FMainWindow(QWidget *parent)
             this, &FMainWindow::onItemDoubleClick);
     connect(m_upButton, &QPushButton::clicked,
             this, &FMainWindow::onUpButtonClick);
+    connect(m_historyStack, &FHistoryStack::sigBackEnable,
+            this, &FMainWindow::onBackButtonEnable);
+    connect(m_historyStack, &FHistoryStack::sigForwardEnable,
+            this, &FMainWindow::onForwardButtonEnable);
+    connect(m_backButton, &QPushButton::clicked,
+            this, &FMainWindow::onBackButtonClick);
+    connect(m_forwardButton, &QPushButton::clicked,
+            this, &FMainWindow::onForwardButtonClick);
 
     onSwitchViewType(Icon);
     jumpToMyComputer();
+    m_historyStack->push(m_fileModel->myComputer().toString());
 }
 
 FMainWindow::~FMainWindow()
@@ -79,6 +89,11 @@ void FMainWindow::initWidget()
 
     //property
     m_fileModel = new MFileSystemModel(this);
+    m_historyStack = new FHistoryStack(this);
+
+    //history
+    m_backButton->setEnabled(false);
+    m_forwardButton->setEnabled(false);
 
     //view
     m_listView->setModel(m_fileModel);
@@ -128,7 +143,8 @@ bool FMainWindow::jumpTo(const QString &path)
     }
     QDir dir(path);
     if(!dir.exists()){
-        QMessageBox::critical(this, "File Explorer", g_dirNotExistMsg, QMessageBox::Ok);
+        QMessageBox::critical(this, "File Explorer", g_dirNotExistMsg.arg(dir.absolutePath()), QMessageBox::Ok);
+        m_urlEdit->setText(m_currPath);
         return false;
     }
     m_currPath = dir.absolutePath();
@@ -150,7 +166,9 @@ QAbstractItemView *FMainWindow::getCurrentView()
 
 void FMainWindow::onLineEditEnter()
 {
-    jumpTo(m_urlEdit->text());
+    QString oldPath = m_currPath;
+    if(jumpTo(m_urlEdit->text()) && m_currPath.compare(oldPath) != 0)
+        m_historyStack->push(m_currPath);   //不是刷新才记录到历史中
 }
 
 void FMainWindow::onUpButtonClick()
@@ -159,10 +177,36 @@ void FMainWindow::onUpButtonClick()
     QDir dir(m_currPath);
     if(dir.cdUp()){
         jumpTo(dir.absolutePath());
+        m_historyStack->push(dir.absolutePath());
     }
     else{
         jumpToMyComputer();
+        m_historyStack->push(m_fileModel->myComputer().toString());
     }
+}
+
+void FMainWindow::onBackButtonEnable(bool b)
+{
+    m_backButton->setEnabled(b);
+}
+
+void FMainWindow::onForwardButtonEnable(bool b)
+{
+    m_forwardButton->setEnabled(b);
+}
+
+void FMainWindow::onBackButtonClick()
+{
+    QString backPath = m_historyStack->backPath();
+    if(backPath.isEmpty()) return;
+    if(jumpTo(backPath)) m_historyStack->back();
+}
+
+void FMainWindow::onForwardButtonClick()
+{
+    QString forwardPath = m_historyStack->forwardPath();
+    if(forwardPath.isEmpty()) return;
+    if(jumpTo(forwardPath)) m_historyStack->forward();
 }
 
 void FMainWindow::onItemDoubleClick(const QModelIndex& index)
@@ -171,6 +215,7 @@ void FMainWindow::onItemDoubleClick(const QModelIndex& index)
     QFileInfo fileInfo = m_fileModel->fileInfo(index);
     if(fileInfo.isDir()){
         jumpTo(fileInfo.absoluteFilePath());
+        m_historyStack->push(fileInfo.absoluteFilePath());
     }
     else{
         //open file
