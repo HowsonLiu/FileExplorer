@@ -26,6 +26,7 @@ public:
 
 signals:
     void sigRemove(const QString&);
+    void sigMore(const QStringList&);
 
 private:
     QAction* m_cutAct;

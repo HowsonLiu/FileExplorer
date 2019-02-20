@@ -2,6 +2,7 @@
 #include "mfilesystemmodel.h"
 #include "fhistorystack.h"
 #include "rightclickmenu.h"
+#include "freleaser.h"
 #include <QPushButton>
 #include <QLineEdit>
 #include <QListView>
@@ -10,6 +11,9 @@
 #include <QVBoxLayout>
 #include <QMessageBox>
 #include <QDebug>
+#include <Windows.h>
+#include <ShlObj_core.h>
+#include <vector>
 
 const QString g_fileDirNotExistMsg = QObject::tr("Could not find this item.\n'%1'");
 const QString g_enterDirNotExistMsg = QObject::tr("Windows can't find '%1'. Check the spelling and try again.");
@@ -55,6 +59,8 @@ FMainWindow::FMainWindow(QWidget *parent)
             this, &FMainWindow::onPaste);
     connect(ITEMMENUINSTANCE, &ItemMenu::sigRemove,
             this, &FMainWindow::onRemove);
+    connect(ITEMMENUINSTANCE, &ItemMenu::sigMore,
+            this, &FMainWindow::onMore);
 
 
     onSwitchViewType(Icon);
@@ -67,7 +73,7 @@ FMainWindow::~FMainWindow()
 
 }
 
-int FMainWindow::CopyFile(const QString &src, const QString &dst, bool move)
+int FMainWindow::CopySingleFile(const QString &src, const QString &dst, bool move)
 {
     QFileInfo srcFileinfo(src);
     if(!srcFileinfo.exists() || srcFileinfo.isDir()){
@@ -140,12 +146,63 @@ int FMainWindow::CopyDir(const QString &src, const QString &dst, bool move)
         }
         else{
             QFileInfo dstFileInfo(dstDir, srcFileInfo.fileName());
-            if(CopyFile(srcFileInfo.absoluteFilePath(), dstFileInfo.absoluteFilePath(), move) == COPY_ERROR)
+            if(CopySingleFile(srcFileInfo.absoluteFilePath(), dstFileInfo.absoluteFilePath(), move) == COPY_ERROR)
                 return COPY_ERROR;
         }
     }
     if(move && srcDir.isEmpty()) srcDir.rmpath(srcDir.absolutePath());
     return COPY_OK;
+}
+
+bool FMainWindow::openShellContextMenu(const QStringList& pathList)
+{
+    if(pathList.empty()) return false;
+    std::vector<ITEMIDLIST*> idvec;
+    std::vector<LPCITEMIDLIST> idChildvec;
+    IShellFolder* ifolder = nullptr;
+    for(QString path : pathList){
+        std::wstring windowsPath = path.toStdWString();
+        std::replace(windowsPath.begin(), windowsPath.end(), '/', '\\');
+        ITEMIDLIST* id = nullptr;
+        HRESULT res = SHParseDisplayName(windowsPath.c_str(), nullptr, &id, 0, nullptr);   //路径转PIDL
+        if(!SUCCEEDED(res) || !id) continue;
+        idvec.push_back(id);
+        idChildvec.push_back(nullptr);
+        res = SHBindToParent(id, IID_IShellFolder, (void**)&ifolder, &idChildvec.back());   //获取ishellfolder
+        if(!SUCCEEDED(res) || !idChildvec.back())
+            idChildvec.pop_back();
+        else if(path.compare(pathList.back()) != 0 && ifolder){
+            ifolder->Release();
+            ifolder = nullptr;
+        }
+    }
+    FItemIdListVectorReleaser vecReleaser(idvec);
+    FComInterfaceReleaser ifolderReleaser (ifolder);
+    if(ifolder == nullptr || idChildvec.empty()) return false;
+    IContextMenu* iMenu = nullptr;
+    HRESULT res = ifolder->GetUIObjectOf((HWND)this->winId(), (UINT)idChildvec.size(),
+                                         (const ITEMIDLIST**)idChildvec.data(),     //获取右键UI按钮
+                                         IID_IContextMenu, nullptr, (void**)&iMenu);//放到imenu中
+    if(!SUCCEEDED(res) || !ifolder) return false;
+    FComInterfaceReleaser menuReleaser(iMenu);
+    HMENU hMenu = CreatePopupMenu();
+    if(!hMenu) return false;
+    if(SUCCEEDED(iMenu->QueryContextMenu(hMenu, 0, 1, 0x7FFF, CMF_NORMAL))){    //默认选项
+        int iCmd = TrackPopupMenuEx(hMenu, TPM_RETURNCMD, QCursor::pos().x(),
+                                    QCursor::pos().y(), (HWND)this->winId(), nullptr);
+        if(iCmd > 0){   //执行菜单命令
+            CMINVOKECOMMANDINFOEX info = { 0 };
+            info.cbSize = sizeof(info);
+            info.fMask = CMIC_MASK_UNICODE;
+            info.hwnd = (HWND)this->winId();
+            info.lpVerb = MAKEINTRESOURCEA(iCmd - 1);
+            info.lpVerbW = MAKEINTRESOURCEW(iCmd - 1);
+            info.nShow = SW_SHOWNORMAL;
+            iMenu->InvokeCommand((LPCMINVOKECOMMANDINFO)&info);
+        }
+    }
+    DestroyMenu(hMenu);
+    return true;
 }
 
 void FMainWindow::onSwitchViewType(FMainWindow::ViewType type)
@@ -174,7 +231,7 @@ void FMainWindow::onPaste(const QStringList &srcs, const QString &dst, bool move
         QFileInfo srcFileInfo(src);
         QFileInfo dstFileInfo(QDir(dst), srcFileInfo.fileName());
         if(srcFileInfo.isFile()){
-            CopyFile(src, dstFileInfo.absoluteFilePath(), move);
+            CopySingleFile(src, dstFileInfo.absoluteFilePath(), move);
         }
         else{
             CopyDir(src, dstFileInfo.absoluteFilePath(), move);
@@ -387,4 +444,9 @@ void FMainWindow::onRemove(const QString& path)
 {
     if(!m_fileModel->remove(m_fileModel->index(path)))
         QMessageBox::critical(this, "Remove Error", g_fileremoveMsg.arg(path), QMessageBox::Ok);
+}
+
+void FMainWindow::onMore(const QStringList& pathList)
+{
+    openShellContextMenu(pathList);
 }

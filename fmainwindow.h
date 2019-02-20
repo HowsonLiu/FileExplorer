@@ -26,9 +26,11 @@ public:
     ~FMainWindow();
     //下面这些文件处理函数可以分离出一个类，太少就算了
     ///Foucs: dst is destination file path (include 1.txt)
-    int CopyFile(const QString& src, const QString& dst, bool move);
+    int CopySingleFile(const QString& src, const QString& dst, bool move);
     ///Focus: dst is destination dir path (targetDir/)
     int CopyDir(const QString& src, const QString& dst, bool move);
+    ///Focus: support muti object which must has the same parent folder
+    bool openShellContextMenu(const QStringList& pathList);
 
 public slots:
     void onSwitchViewType(ViewType type);
@@ -67,6 +69,7 @@ private slots:
     void onCustomContextMenuRequested(const QPoint&);
     void onRefresh();
     void onRemove(const QString&);
+    void onMore(const QStringList&);
 };
 
 #endif // FMAINWINDOW_H

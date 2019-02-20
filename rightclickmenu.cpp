@@ -76,7 +76,7 @@ void ItemMenu::onRemoveAct()
 
 void ItemMenu::onMoreAct()
 {
-
+    emit sigMore(m_selectedItemList);
 }
 
 void ItemMenu::initWidget()

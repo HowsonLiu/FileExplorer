@@ -35,7 +35,11 @@ HEADERS += \
         fmainwindow.h \
     mfilesystemmodel.h \
     fhistorystack.h \
-    rightclickmenu.h
+    rightclickmenu.h \
+    freleaser.h
+
+LIBS += User32.LIB \
+    Ole32.LIB
 
 # Default rules for deployment.
 qnx: target.path = /tmp/$${TARGET}/bin
