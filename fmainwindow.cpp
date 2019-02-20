@@ -243,6 +243,7 @@ void FMainWindow::onPaste(const QStringList &srcs, const QString &dst, bool move
             CopyDir(src, dstFileInfo.absoluteFilePath(), move);
         }
     }
+    if(inNetwork()) onRefresh();    //由于性能的原因，网络文件的增删不会被Model感知，需要手动刷新
 }
 
 void FMainWindow::initWidget()
@@ -311,6 +312,11 @@ void FMainWindow::initWidget()
 bool FMainWindow::inMyComputer() const
 {
     return m_currPath.compare(m_fileModel->myComputer().toString()) == 0;
+}
+
+bool FMainWindow::inNetwork() const
+{
+    return m_currPath.startsWith("//") | m_currPath.startsWith("\\\\");
 }
 
 void FMainWindow::jumpToMyComputer()
@@ -449,7 +455,9 @@ void FMainWindow::onRefresh()
 void FMainWindow::onRemove(const QString& path)
 {
     if(!m_fileModel->remove(m_fileModel->index(path)))
-        QMessageBox::critical(this, "Remove Error", g_fileremoveMsg.arg(path), QMessageBox::Ok);
+        QMessageBox::critical(this, "Remove Error",
+                              g_fileremoveMsg.arg(path), QMessageBox::Ok);
+    if(inNetwork()) onRefresh();//由于性能的原因，网络文件的增删不会被Model感知，需要手动刷新
 }
 
 void FMainWindow::onMore(const QStringList& pathList)

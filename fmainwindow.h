@@ -32,10 +32,6 @@ public:
     ///Focus: support muti object which must has the same parent folder
     bool openShellContextMenu(const QStringList& pathList);
 
-public slots:
-    void onSwitchViewType(ViewType type);
-    void onPaste(const QStringList& srcs, const QString& dst, bool move);
-
 private:
     QPushButton* m_backButton;
     QPushButton* m_forwardButton;
@@ -54,6 +50,7 @@ private:
 private:
     void initWidget();
     bool inMyComputer() const;
+    bool inNetwork() const;
     void jumpToMyComputer();
     bool jumpTo(const QString& path);
     QAbstractItemView *getCurrentView();
@@ -70,6 +67,8 @@ private slots:
     void onRefresh();
     void onRemove(const QString&);
     void onMore(const QStringList&);
+    void onSwitchViewType(ViewType type);
+    void onPaste(const QStringList& srcs, const QString& dst, bool move);
 };
 
 #endif // FMAINWINDOW_H
