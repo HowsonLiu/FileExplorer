@@ -62,6 +62,10 @@ FMainWindow::FMainWindow(QWidget *parent)
     connect(ITEMMENUINSTANCE, &ItemMenu::sigMore,
             this, &FMainWindow::onMore);
 
+    //drop
+    connect(m_fileModel, &MFileSystemModel::sigDropEnd,
+            this, &FMainWindow::onPaste);
+
 
     onSwitchViewType(Icon);
     jumpToMyComputer();

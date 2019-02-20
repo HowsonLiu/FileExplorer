@@ -5,6 +5,8 @@
 #include <ShlObj_core.h>
 #include <vector>
 
+//RAII机制
+
 class FItemIdListReleaser {
 public:
     explicit FItemIdListReleaser(ITEMIDLIST* idList) : m_idList(idList) {}
