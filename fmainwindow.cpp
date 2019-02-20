@@ -13,6 +13,8 @@
 #include <QDebug>
 #include <Windows.h>
 #include <ShlObj_core.h>
+#include <QDesktopServices>
+#include <QUrl>
 #include <vector>
 
 const QString g_fileDirNotExistMsg = QObject::tr("Could not find this item.\n'%1'");
@@ -402,7 +404,7 @@ void FMainWindow::onItemDoubleClick(const QModelIndex& index)
         m_historyStack->push(fileInfo.absoluteFilePath());
     }
     else{
-        //open file
+        QDesktopServices::openUrl(QUrl::fromLocalFile(fileInfo.absoluteFilePath()));
     }
 }
 
