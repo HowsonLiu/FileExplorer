@@ -9,6 +9,7 @@ class MFileSystemModel : public QFileSystemModel
 public:
     explicit MFileSystemModel(QObject *parent = nullptr);
     Qt::DropActions supportedDropActions() const override;
+    Qt::DropActions supportedDragActions() const override;
     Qt::ItemFlags flags(const QModelIndex &index) const override;
     QStringList mimeTypes() const override;
     QMimeData *mimeData(const QModelIndexList& indexes) const override;

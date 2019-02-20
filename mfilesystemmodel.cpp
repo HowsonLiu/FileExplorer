@@ -10,9 +10,12 @@ MFileSystemModel::MFileSystemModel(QObject *parent) : QFileSystemModel(parent)
 
 Qt::DropActions MFileSystemModel::supportedDropActions() const
 {
-    Qt::DropActions ori = QFileSystemModel::supportedDropActions();
-    //qDebug() << ori << endl;
-    return ori;
+    return Qt::CopyAction | Qt::MoveAction; // | Qt::LinkAction
+}
+
+Qt::DropActions MFileSystemModel::supportedDragActions() const
+{
+    return Qt::CopyAction | Qt::MoveAction; // | Qt::LinkAction
 }
 
 Qt::ItemFlags MFileSystemModel::flags(const QModelIndex &index) const
@@ -29,9 +32,7 @@ Qt::ItemFlags MFileSystemModel::flags(const QModelIndex &index) const
 
 QStringList MFileSystemModel::mimeTypes() const
 {
-    QStringList ori = QFileSystemModel::mimeTypes();
-    //qDebug() << ori << endl;
-    return ori;
+    return QFileSystemModel::mimeTypes();
 }
 
 QMimeData *MFileSystemModel::mimeData(const QModelIndexList &indexes) const
