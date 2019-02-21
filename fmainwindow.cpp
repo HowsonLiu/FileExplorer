@@ -307,6 +307,21 @@ void FMainWindow::initWidget()
     m_treeView->setSelectionMode(QAbstractItemView::ExtendedSelection);
     m_treeView->setEditTriggers(QAbstractItemView::SelectedClicked);
     m_treeView->setSortingEnabled(true);    //自带排序
+    m_treeView->sortByColumn(0, Qt::AscendingOrder);    //原本默认是名字降序，改为升序
+
+    //UI
+    m_backButton->setStyleSheet("QPushButton{border-image: url(:/icon/Resources/back-enable.png)}"
+                            "QPushButton:disabled{border-image: url(:/icon/Resources/back-disable.png)}");
+    m_forwardButton->setStyleSheet("QPushButton{border-image: url(:/icon/Resources/forward-enable.png)}"
+                                   "QPushButton:disabled{border-image: url(:/icon/Resources/forward-disable.png)}");
+    m_upButton->setStyleSheet("QPushButton{border-image: url(:/icon/Resources/up-enable.png)}"
+                                   "QPushButton:disabled{border-image: url(:/icon/Resources/up-disable.png)}");
+    m_enterButton->setStyleSheet("QPushButton{border-image: url(:/icon/Resources/enter.png)}");
+    m_backButton->setFixedSize(QSize(23,23));
+    m_forwardButton->setFixedSize(QSize(23,23));
+    m_upButton->setFixedSize(QSize(23,23));
+    m_enterButton->setFixedSize(QSize(23,23));
+    resize(800, 500);
 }
 
 bool FMainWindow::inMyComputer() const
