@@ -1,7 +1,6 @@
 ﻿#include "mfilesystemmodel.h"
 #include <QMimeData>
 #include <QUrl>
-#include <QDebug>
 
 MFileSystemModel::MFileSystemModel(QObject *parent) : QFileSystemModel(parent)
 {
@@ -38,13 +37,11 @@ QStringList MFileSystemModel::mimeTypes() const
 QMimeData *MFileSystemModel::mimeData(const QModelIndexList &indexes) const
 {
     QMimeData* ori = QFileSystemModel::mimeData(indexes);
-    qDebug() << ori << endl;
     return ori;
 }
 
 bool MFileSystemModel::dropMimeData(const QMimeData *data, Qt::DropAction action, int row, int column, const QModelIndex &parent)
 {
-    qDebug() << data->urls() << action << row << column << fileInfo(parent).absoluteFilePath() << endl;
     if(action == Qt::IgnoreAction) return false;
     if(!data->hasUrls()) return false;
     QList<QUrl> urls = data->urls();
@@ -60,6 +57,5 @@ bool MFileSystemModel::dropMimeData(const QMimeData *data, Qt::DropAction action
 
 bool MFileSystemModel::setData(const QModelIndex &index, const QVariant &value, int role)
 {
-    qDebug() << index << value << role << endl;
     return QFileSystemModel::setData(index, value, role);
 }

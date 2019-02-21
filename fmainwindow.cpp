@@ -10,7 +10,6 @@
 #include <QHBoxLayout>
 #include <QVBoxLayout>
 #include <QMessageBox>
-#include <QDebug>
 #include <Windows.h>
 #include <ShlObj_core.h>
 #include <QDesktopServices>
@@ -232,7 +231,6 @@ void FMainWindow::onSwitchViewType(FMainWindow::ViewType type)
 
 void FMainWindow::onPaste(const QStringList &srcs, const QString &dst, bool move)
 {
-    qDebug() << srcs << dst << endl;
     for(QString src : srcs){
         QFileInfo srcFileInfo(src);
         QFileInfo dstFileInfo(QDir(dst), srcFileInfo.fileName());
@@ -331,7 +329,7 @@ bool FMainWindow::inMyComputer() const
 
 bool FMainWindow::inNetwork() const
 {
-    return m_currPath.startsWith("//") | m_currPath.startsWith("\\\\");
+    return m_currPath.startsWith("//") | m_currPath.startsWith("\\\\"); //简单的判断，日后更改
 }
 
 void FMainWindow::jumpToMyComputer()
